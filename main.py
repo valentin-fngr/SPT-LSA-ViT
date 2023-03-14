@@ -73,7 +73,7 @@ def train(model, train_loader, optimizer, scheduler, criterion, epoch, writer=No
         optimizer.zero_grad() 
         loss.backward()
         optimizer.step()
-        scheduler.step()
+    scheduler.step()
 
     train_loss = train_loss / len(train_loader)
     train_acc = train_acc / len(train_loader)
