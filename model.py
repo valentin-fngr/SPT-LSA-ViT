@@ -48,7 +48,7 @@ class ShiftedPatchTokenizer(nn.Module):
         self.class_embedding = nn.Embedding(num_classes, c_out)
         self.pos_embedding = nn.Embedding(num_patches + 1, c_out)
 
-    def forward(self, x, class_id=None): 
+    def forward(self, x): 
         """
             x : (B, c, w, h)
             out : (B, N, N*c*P**2)
@@ -58,14 +58,7 @@ class ShiftedPatchTokenizer(nn.Module):
         patches = self._patch_image(shifts)
         out = self.linear(self.layer_norm(patches))
         pos_token = self.pos_embedding(torch.arange(0, self.num_patches + 1, device=config.device)[None, :].type(torch.long))
-        
-        if class_id is not None:
-            class_token = self.class_embedding(class_id.clone().detach())[:, None].type(torch.long)
-            out = torch.concat([class_token, out], dim=1) + pos_token
-        else: 
-            out = torch.concat([torch.zeros(out.shape[0], 1, out.shape[-1], device=config.device),out], dim=1) + pos_token
-        
-
+        out = torch.concat([torch.zeros(out.shape[0], 1, out.shape[-1], device=config.device),out], dim=1) + pos_token
         return out
 
     def _patch_image(self, images): 
@@ -187,7 +180,6 @@ class AttentionBlock(nn.Module):
         return out
 
 
-
 class ViTLSA(nn.Module): 
 
     def __init__(self, num_heads, num_blocks, d_model, num_classes, dropout=0.2): 
@@ -198,11 +190,14 @@ class ViTLSA(nn.Module):
         num_patches = (config.image_size // config.patch_size)**2
         self.final_layer = nn.Linear(d_model * (num_patches+1), num_classes)
 
-    def forward(self, x, class_id=None): 
-        x = self.shift_patch_tokenizer(x, class_id)
+    def forward(self, x): 
+        x = self.shift_patch_tokenizer(x)
         out = self.blocks(x)
         B, T, d = out.shape
         out = out.view(B, T*d)
         out = self.dropout(out)
         out = self.final_layer(out)
         return out 
+    
+    def get_number_parameters(self): 
+        return sum(p.numel() for p in self.parameters() if p.requires_grad)
