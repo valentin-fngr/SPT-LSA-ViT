@@ -44,7 +44,7 @@ class ShiftedPatchTokenizer(nn.Module):
         
         c_in = int(5*3*patch_size**2)
         self.linear = nn.Linear(c_in, c_out, bias=False)
-        self.layer_norm = nn.LayerNorm()
+        self.layer_norm = nn.LayerNorm(c_in)
         self.class_embedding = nn.Embedding(num_classes, c_out)
         self.pos_embedding = nn.Embedding(num_patches + 1, c_out)
 
@@ -59,10 +59,13 @@ class ShiftedPatchTokenizer(nn.Module):
         out = self.linear(self.layer_norm(patches))
         pos_token = self.pos_embedding(torch.arange(0, self.num_patches + 1, device=config.device)[None, :].type(torch.long))
         
-        if class_id:
-            class_token = self.class_embedding(torch.tensor(class_id, device=config.device)[:, None].type(torch.long)) 
+        if class_id is not None:
+            class_token = self.class_embedding(class_id.clone().detach())[:, None].type(torch.long)
+            out = torch.concat([class_token, out], dim=1) + pos_token
+        else: 
+            out = torch.concat([torch.zeros(out.shape[0], 1, out.shape[-1], device=config.device),out], dim=1) + pos_token
+        
 
-        out = torch.concat([class_token, out], dim=1) + pos_token
         return out
 
     def _patch_image(self, images): 
@@ -144,7 +147,7 @@ class MultiHeadAttention(nn.Module):
         self.multi_head = nn.ModuleList([SelfAttentionLSA(c_in, c_out // num_heads) for _ in range(num_heads)])
         
     def forward(self, x): 
-        return torch.concat(self.multi_head(x), dim=-1)
+        return torch.concat([sa(x) for sa in self.multi_head], dim=-1)
     
     
 
@@ -152,7 +155,7 @@ class MultiHeadAttention(nn.Module):
 class FeedForward(nn.Module): 
 
     def __init__(self, c_in, c_out, dropout):
-
+        super().__init__()
         self.linear1 = nn.Linear(c_in, c_out) 
         self.linear2 = nn.Linear(c_out, c_out)
         self.dropout = nn.Dropout(dropout)
@@ -160,7 +163,7 @@ class FeedForward(nn.Module):
 
     def forward(self, x): 
 
-        x = self.gelu(self.linear11(x)) 
+        x = self.gelu(self.linear1(x)) 
         out = self.dropout(self.linear2(x))
         return out  
 
@@ -168,12 +171,12 @@ class FeedForward(nn.Module):
 
 class AttentionBlock(nn.Module): 
 
-    def __init__(self, d_block, dropout): 
+    def __init__(self, num_heads, d_block, dropout): 
         super().__init__() 
-        self.layer_norm1 = nn.LayerNorm()
-        self.layer_norm2 = nn.LayerNorm()
-        self.layer_norm3 = nn.LayerNorm()
-        self.multi_head = MultiHeadAttention(16, d_block, d_block, dropout)
+        self.layer_norm1 = nn.LayerNorm(d_block)
+        self.layer_norm2 = nn.LayerNorm(d_block)
+        self.layer_norm3 = nn.LayerNorm(d_block)
+        self.multi_head = MultiHeadAttention(num_heads, d_block, d_block)
         self.mlp = FeedForward(d_block, d_block, dropout)
 
     def forward(self, x):
@@ -187,16 +190,19 @@ class AttentionBlock(nn.Module):
 
 class ViTLSA(nn.Module): 
 
-    def __init__(self, num_blocks, d_model, num_classes, dropout=0.2): 
+    def __init__(self, num_heads, num_blocks, d_model, num_classes, dropout=0.2): 
         super().__init__()
         self.shift_patch_tokenizer = ShiftedPatchTokenizer(config.image_size, config.patch_size, d_model, num_classes)
-        self.blocks = nn.Sequential(*[AttentionBlock(d_model) for _ in range(num_blocks)])
+        self.blocks = nn.Sequential(*[AttentionBlock(num_heads,d_model, dropout) for _ in range(num_blocks)])
         self.dropout = nn.Dropout(0.2)
-        self.final_layer = nn.Linear(d_model, num_blocks)
+        num_patches = (config.image_size // config.patch_size)**2
+        self.final_layer = nn.Linear(d_model * (num_patches+1), num_classes)
 
-    def forward(self, x): 
-        x = self.shift_patch_tokenizer(x)
+    def forward(self, x, class_id=None): 
+        x = self.shift_patch_tokenizer(x, class_id)
         out = self.blocks(x)
+        B, T, d = out.shape
+        out = out.view(B, T*d)
         out = self.dropout(out)
         out = self.final_layer(out)
         return out 
