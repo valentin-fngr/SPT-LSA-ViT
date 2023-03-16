@@ -28,3 +28,5 @@ These components can be found in the models.py
 - [ ] Use register_buffer for the -inf mask in the Locality Self-Attention
 - [ ] Use warmup  
 - [ ] Visualize Attention layers
+- [ ] Track scaling coefficient in attention using TensorBoard 
+
