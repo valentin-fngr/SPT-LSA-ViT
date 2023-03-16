@@ -125,8 +125,15 @@ class SelfAttentionLSA(nn.Module):
         k = self.key(x) # (B, N, c_out)
         v = self.value(x) # (B, N, c_out)
 
+        N = q.shape[1]
+
+        diag = torch.eye(N, device=config.device)[None, :]
+        diag[diag == 1] = float("-inf")
+        diag[diag == 0] = 1
+
         attn = (q @ k.transpose(-1, -2)) / self.temperature # (B, N, N)
-        attn_prob = F.softmax(attn, dim=1) @ v 
+        attn = attn * diag
+        attn_prob = F.softmax(diag, dim=1) @ v 
         return attn_prob
 
 

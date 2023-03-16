@@ -1,13 +1,13 @@
 
 image_size = 32 
-patch_size = 8
-dropout = 0.22 
+patch_size = 4
+dropout = 0.13 
 batch_size = 128
-lr = 0.003
-weight_decay = 0.05
-num_blocks = 1
-num_heads = 8
-d_model = 64
-epochs = 200
+lr = 0.0003
+weight_decay = 0.0005
+num_blocks = 5
+num_heads = 16
+d_model = 192
+epochs = 100
 
 device = "cuda"

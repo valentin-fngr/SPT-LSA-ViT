@@ -125,7 +125,7 @@ def main():
     optimizer, scheduler = get_optimizer(model) 
     criterion = get_criterion() 
 
-    model_name = f"vanilla_d_model={config.d_model}_#block{config.num_blocks}_#heads={config.num_heads}_lr={config.lr}_bs={config.batch_size}"
+    model_name = f"diag_inf_d_model={config.d_model}_epochs={config.epochs}_#block{config.num_blocks}_#heads={config.num_heads}_lr={config.lr}_bs={config.batch_size}"
     writer = SummaryWriter("runs/" + model_name)
 
     print("--- Starting training ---", "\n") 
