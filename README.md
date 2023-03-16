@@ -1,7 +1,5 @@
-# simpleVIT
-Building a simple vision transformer model from scratch 
 
-### SPT-LSA ViT : training ViT for small size Datasets
+# SPT-LSA ViT : training ViT for small size Datasets
 
 Here is a non official implementation, in Pytorch, of the paper <a href="https://arxiv.org/abs/2112.13492v1">Vision Transformer for Small-Size Datasets<a/>. 
 
