@@ -133,7 +133,7 @@ class SelfAttentionLSA(nn.Module):
 
         attn = (q @ k.transpose(-1, -2)) / self.temperature # (B, N, N)
         attn = attn * diag
-        attn_prob = F.softmax(diag, dim=1) @ v 
+        attn_prob = F.softmax(attn, dim=1) @ v 
         return attn_prob
 
 
